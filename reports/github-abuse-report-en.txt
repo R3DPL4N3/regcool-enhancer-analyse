@@ -1,0 +1,51 @@
+Subject: Suspected malware distribution and deceptive installer instructions — saberjin/regcool-enhancer-mod
+
+Repository:
+https://github.com/saberjin/regcool-enhancer-mod
+Relevant file:
+https://github.com/saberjin/regcool-enhancer-mod/blob/main/index.html
+
+Please investigate this repository's current and historical download infrastructure.
+
+Repository evidence independently verified on 2026-11-07:
+The index.html file contains eight Base64-encoded template chunks and a repeating-key XOR decoder. It was decoded statically inside an analysis VM; the HTML/JavaScript and advertised commands were not executed.
+
+The decoded page instructs users to run PowerShell to download and immediately execute content from:
+hxxps://activation-gateway[.]cc/update/ps-release
+
+Decoded HTML line 507 contains the download-and-execute command; line 533 presents a second variant using ExecutionPolicy Bypass. Line 543 instructs users to pause real-time antivirus protection if the installer is blocked. Clipboard-copy functionality is provided for these commands.
+
+GitHub blob SHA-1: 29513720d4428524f38722dcdd342c60d74233e8
+index.html SHA256:
+242f649e67445373716d63c09ced4593d761fd759d37aa4a5c2151a362e80143
+Decoded HTML SHA256:
+69f0abaaccdade9a9d9747ad5408637fb5168d96ff6862e7cc8a702be478fb74
+
+Download-source observation:
+I observed gerhodd[.]com as the download destination reached through this repository's installation/download flow. This is my observation of the acquisition chain. The currently inspected index.html explicitly references activation-gateway[.]cc; it does not directly contain gerhodd.com. A downstream redirect/script stage or an earlier repository version may explain this difference, but that intermediate hop has not yet been independently captured.
+
+Analyzed artifact:
+release-x64-clean.exe
+SHA256:
+b0b01b8dd5a7f2e92b90e07b49a46ef9d3f9d5f719ffe5fb8ed463c2d379b74f
+
+This hash identifies the analyzed executable, not the original downloaded archive. The complete original-download-to-analyzed-artifact hash chain remains to be documented.
+
+Observed sample behavior:
+- Injection into explorer.exe.
+- Hypervisor/CPU and display-adapter environment checks.
+- Collection of host/user identifiers, hardware information, OS version, languages, screen resolution, and installed software.
+- Attempted HTTPS POST to wrestprower[.]info:443, path "/".
+- User-Agent: zooftoofoast.
+- Destination corroborated by debugger API arguments, TLS ClientHello SNI, and Explorer-attributed TCP events.
+- A 732-byte clear system-profile buffer and a 618-byte prepared request body were preserved.
+
+Analysis conditions and limits:
+The network behavior appeared after environment-check results were overridden in a debugger inside the VM; the on-disk sample was unchanged. Traffic reached an INetSim lab server. Successful exfiltration to the real endpoint and receipt of remote commands were not demonstrated. WinHTTP returned security error 12175.
+
+Evidence available:
+Original and statically decoded index.html, hashes and decoding method, technical report, debugger logs, PCAPNG, Procmon records, and captured request buffers.
+
+Please review the repository and associated installation infrastructure for malware distribution and preserve relevant historical versions and download links.
+
+
