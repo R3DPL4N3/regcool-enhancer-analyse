@@ -1,0 +1,122 @@
+REALLAB — C2 VE KOŞULLU AĞ DAVRANIŞI RAPORU
+Tarih: 7 Kasım 2026. Son doğrulama: 12:22, Europe/Istanbul.
+
+SONUÇ
+Örneğin yapılandırılmış ağ hedefi yüksek güvenle wrestprower[.]info olarak doğrulandı.
+İstek: hxxps://wrestprower[.]info:443/
+Yöntem: POST
+Yol: /
+User-Agent: zooftoofoast
+Taşıma: HTTPS; WinHttpOpenRequest flags=0x00800000.
+Ağ işlemini yürüten süreç: enjekte edilmiş Explorer.EXE.
+
+Bu sonuç dosyadaki bir metin eşleşmesine dayanmıyor. Aynı hedef WinHttpConnect parametresinde, TLS ClientHello SNI alanında ve ilgili Explorer TCP bağlantısında eşleştirildi. Sunucunun komut protokolü ve gerçek dış IP adresi bu çalışma kapsamında doğrulanmadı.
+
+ÖRNEK
+VM dosyası: C:\Users\analyst\Desktop\reallab\release-x64-clean.exe
+SHA256: b0b01b8dd5a7f2e92b90e07b49a46ef9d3f9d5f719ffe5fb8ed463c2d379b74f
+Analiz sonunda aynı hash yeniden doğrulandı; diskteki örnek değiştirilmedi.
+Örnek üzerindeki ayrıştırma, debugging ve çalıştırma işlemleri Windows VM içinde yapıldı.
+
+NEDEN İLK ÇALIŞTIRMADA AĞ TRAFİĞİ GÖRÜLMEDİ?
+İkinci aşamada CPU/hypervisor üreticisi karşılaştırmaları ve ekran bağdaştırıcısı kontrolleri bulunuyor. İlk doğal çalıştırmalarda VMwareVMware, VBoxVBoxVBox, XenVMMXenVMM gibi değerler çözüldü; yürütme mesaj gösteren ve ana işlevden dönen yola ulaştı. Bu yüzden kısa gözlemde trafik olmaması, ağ yeteneği bulunmadığı anlamına gelmiyordu.
+
+Kontrollü deneyde, yalnızca debugger oturumunda, ana işlevin erken ortam kontrollerinden çağrılan iki karşılaştırmanın sonucu false yapıldı. Son doğrulamada iki CPU karşılaştırması ve üç ekran karşılaştırması gözlendi:
+- Virtio
+- Standard VGA
+- Basic Display
+Karşılaştırılan mevcut bağdaştırıcı metni: Microsoft Basic Display Adapter.
+
+Bu müdahaleden sonra kod sistem bilgisi toplamaya ve HTTPS isteği oluşturmaya ilerledi. GetSystemFirmwareTable çağrıları da gözlendi; firmware API'sinin sonucu değiştirilmedi. Önceki deney betiğinde “SMBIOS_STRING_CHECK” denilen karşılaştırmanın son gözlemde ekran bağdaştırıcısı adları üzerinde çalıştığı doğrulandı; raporda ekran kontrolü olarak adlandırılmıştır.
+
+MessageBoxW için beklemeyi önleyen IDOK dönüşü de debugger'a tanımlandı; başarılı kontrollü ağ yolunda bu breakpoint tetiklenmedi. Dolayısıyla ağ bulgusu, doğal/koşulsuz davranış olarak değil, ortam engelleri analiz amacıyla geçilmiş davranış olarak raporlanmaktadır.
+
+DOĞRULAMA ZİNCİRİ
+Son doğrulama klasörü:
+C:\Lab\Runs\reallab-20261107-01\c2-proof
+
+1. observer.log:
+   Satır 390-403: CPU ve ekran karşılaştırmalarına uygulanan kontrollü müdahaleler.
+   Satır 404: açık sistem profili tamponunun kaydı.
+   Satır 407: ağ yardımcı işlevine verilen domain ve gövdenin kaydı.
+   Satır 416: User-Agent.
+   Satır 421: wrestprower.info ve 443 portu.
+   Satır 428: POST, / ve HTTPS bayrağı.
+   Satır 439-441: WinHttpSendRequest sonucu EAX=0; TEB LastErrorValue=0x2f8f (12175).
+
+2. network.pcapng:
+   TLS ClientHello SNI: wrestprower.info
+   Bağlantı: 192.168.56.30:59769 -> 192.168.56.20:443
+
+3. run.csv / run.pml:
+   Explorer.EXE, PID 7308
+   TCP Connect: SUCCESS
+   Aynı kaynak portu: 59769
+   Ardından TCP Send/Receive ve Disconnect kayıtları bulunuyor.
+   CSV'deki 20.56.168.192.in-addr.arpa, lab IP'si 192.168.56.20'nin ters DNS gösterimidir.
+
+LAB IP'Sİ İLE GERÇEK SUNUCUYU AYIRMA
+VM adresi: 192.168.56.30
+DNS / ağ geçidi / gözlenen servis: 192.168.56.20
+Paket kayıtlarında “INetSim HTTP Server” ve simülasyon yanıtları mevcut.
+192.168.56.20 saldırganın gerçek dış IP'si olarak raporlanamaz; lab sunucusudur.
+Doğrulanan hedef alan adıdır: wrestprower[.]info.
+NAT/bridged erişime geçilmedi ve gerçek C2 ile başarılı oturum kurulmadı.
+
+NE GÖNDERMEYE HAZIRLANIYOR?
+Dönüşüm öncesindeki 732 baytlık tampon dosyaya alındı. Tampon içinde açık olarak:
+- Bilgisayar adı: DESKTOP-BBEPAD3
+- Kullanıcı adı: analyst
+- Windows sürümü: 11 (10.0.26100)
+- CPU modeli ve işlemci kimliği
+- Disk/birim seri bilgisi
+- GPU/ekran bağdaştırıcısı adı
+- Ekran çözünürlüğü: 1024x768
+- Dil bilgileri: en-US
+- Kurulu uygulamalar ve sürümleri
+- 64 karakterlik bir sistem kimliği/hash alanı
+bulunuyor. Sayısal alanların tümünün şeması çözümlenmedi.
+
+Bu veri akışı için hazırlanan ikili HTTP gövdesi 618 bayt. WinHttpSendRequest'e bildirilen toplam içerik uzunluğu da 0x26a = 618. Gövde, gönderimden önce ağ yardımcı işlevinin argümanından kaydedildi. Görülen dönüşüm için kesin bir kriptografik algoritma adı atanmadı.
+
+DOSYALAR
+pre-encryption.bin: 732 bayt, dönüşüm öncesi açık sistem profili.
+prepared-domain.bin: 16 bayt, wrestprower.info.
+prepared-body.bin: 618 bayt, gönderilmek üzere hazırlanmış ikili gövde.
+verified-evidence.json: süreç/ağ eşleştirmesi, TLS SNI ve dosya hash'leri.
+winhttp-error.json: hata 12175 için VM'deki WinHTTP modülünden alınan açıklama.
+observer.log: debugger kanıtı.
+network.pcapng: paket kaydı.
+run.pml / run.csv: süreç ve ağ olayları.
+result.json: koşullar, PID, bellek adresleri, gözlem süresi ve bitiş durumu.
+
+GÖNDERİM VE C2 YANITI
+WinHttpSendRequest FALSE döndü.
+LastErrorValue: 12175 / 0x2f8f.
+VM'deki WinHTTP mesaj kaynağı açıklaması: “A security error occurred”.
+Lab bağlantısında TLS güvenlik aşamasında hata oluştu. TCP bağlantısı ve TLS trafiği, uygulama verisinin başarıyla teslim edildiği anlamına gelmez.
+WinHttpWriteData ve başarılı yanıt okuma bu son deneyde gözlenmedi. Gövde dosyası ağdan alınmış başarılı bir POST değil, süreç içinde gönderim için hazırlanmış tampondur.
+
+Kodun ağ yardımcı işlevinden sonra hata/başarı ayrımı yaptığı, başarılı sonuç halinde yanıt verisini işlemeye devam eden bir dalı olduğu görüldü. Gerçek C2 yanıtı bulunmadığından sonraki payload/komutlar, sunucu tarafındaki koşullar, ek adresler ve failover doğrulanmış değildir. Tüm olası çalışma koşullarının tüketildiği iddia edilmemektedir.
+
+TESPİT İÇİN ÖNCELİKLİ GÖSTERGELER
+Alan adı / TLS SNI: wrestprower.info
+HTTP User-Agent: zooftoofoast
+Yöntem/yol: POST /
+Süreç bağlamı: özel bellek bölgesindeki enjekte edilmiş koddan Explorer.EXE içinden WinHTTP kullanımı.
+Domain, User-Agent ve süreç bağlamının birlikte değerlendirilmesi tek başına POST / eşleşmesinden daha anlamlıdır.
+Windows/Edge ile eşleşen msftconnecttest, config.edge.skype.com ve diğer arka plan trafiği bu örneğin C2'si olarak sınıflandırılmadı.
+
+KANIT HASH'LERİ (SHA256)
+observer.log:
+52878a8d3d0f268a3297e1e00d18b01ee75e6d9d2249676e4d4f2774d7becada
+network.pcapng:
+3af01dc4577239a8ae15b520233e54a9a170f01bc764a808fd90ea41e2ef0181
+pre-encryption.bin:
+5fb9daf49886b832eac83fbf1d4430c7c1ee4a15ebbb6ff60de0ff849b36d8e5
+prepared-body.bin:
+7179ce190dfcc32e46f019ad1f08a4332a0b03a96f882928a3179a662c73f6c6
+
+SON DURUM
+Son debugger oturumu ayrıldı; paket ve Procmon kayıtları durduruldu. Önceki deneylerin debugger izlerini temizlemek için VM'deki Explorer süreci analiz sırasında yeniden başlatıldı. VM temiz snapshot'a döndürülmedi; enjekte edilmiş örneğin bulunduğu analiz ortamı olarak bırakıldı. Diskteki kanıtlar korunuyor.
+
